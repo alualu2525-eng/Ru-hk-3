@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 港澳盛夏之旅</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .card-gradient { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+        .tab-shadow { box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900">
+    <div id="app" class="max-w-md mx-auto bg-white min-h-screen pb-28 relative shadow-2xl">
+        
+        <header class="bg-blue-600 p-6 text-white rounded-b-[2.5rem] shadow-lg sticky top-0 z-50">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">港澳旅遊大師</h1>
+                    <p class="text-blue-100 text-xs mt-1">
+                        <i class="fas fa-calendar-alt mr-1"></i> 2026.08.28 - 08.30
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-semibold">31°C</p>
+                    <p class="text-xs text-blue-100">香港：多雲有雨 <i class="fas fa-cloud-showers-heavy ml-1"></i></p>
+                </div>
+            </div>
+        </header>
+
+        <nav class="flex justify-around p-4 bg-white border-b sticky top-[92px] z-40">
+            <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+                :class="activeTab === tab.id ? 'text-blue-600 font-bold border-b-2 border-blue-600' : 'text-slate-400'"
+                class="pb-2 text-sm transition-all">
+                {{ tab.name }}
+            </button>
+        </nav>
+
+        <main class="p-5">
+            <section v-if="activeTab === 'itinerary'" class="space-y-6">
+                <div class="flex gap-2 overflow-x-auto hide-scrollbar">
+                    <button v-for="d in 3" @click="selectedDay = d"
+                        :class="selectedDay === d ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'"
+                        class="px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors">
+                        DAY 0{{ d }}
+                    </button>
+                </div>
+
+                <div v-for="(item, index) in filteredItinerary" :key="index" class="relative pl-8 border-l-2 border-blue-200 py-1">
+                    <div class="absolute -left-[9px] top-2 w-4 h-4 bg-blue-600 rounded-full border-4 border-white"></div>
+                    <div class="card-gradient p-4 rounded-2xl shadow-sm border border-blue-50 transition-transform active:scale-95">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-blue-600 font-black text-xs">{{ item.time }}</span>
+                            <span class="bg-white px-2 py-0.5 rounded text-[10px] font-bold text-slate-500 shadow-sm">{{ item.cost }}</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg mb-1">{{ item.location }}</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed mb-3">{{ item.desc }}</p>
+                        
+                        <div class="flex gap-2">
+                            <button @click="openGoogleMap(item.location)" class="flex-1 bg-white border border-blue-200 text-blue-600 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-50">
+                                <i class="fas fa-location-arrow"></i> Google 導航
+                            </button>
+                            <a v-if="item.link" :href="item.link" target="_blank" class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                                <i class="fas fa-bus"></i> 接駁時刻表
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="activeTab === 'finance'" class="space-y-4">
+                <div class="bg-slate-900 text-white p-6 rounded-3xl shadow-xl">
+                    <p class="text-xs opacity-70 mb-1 tracking-widest uppercase">總預算消耗</p>
+                    <h2 class="text-4xl font-black italic">HK$ {{ totalExpense }}</h2>
+                </div>
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                    <input v-model="newExp.item" type="text" placeholder="支出項目 (如：蛋塔)" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
+                    <div class="flex gap-2">
+                        <input v-model.number="newExp.amount" type="number" placeholder="金額" class="w-1/2 p-3 bg-slate-50 border-none rounded-xl text-sm">
+                        <select v-model="newExp.method" class="w-1/2 p-3 bg-slate-50 border-none rounded-xl text-sm appearance-none">
+                            <option>現金</option>
+                            <option>信用卡</option>
+                            <option>八達通/MOP</option>
+                        </select>
+                    </div>
+                    <button @click="addExpense" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:bg-blue-700 transition-all">記錄支出</button>
+                </div>
+
+                <div v-for="exp in expenses" class="flex justify-between items-center p-4 bg-white border-b">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">{{ exp.item }}</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-tighter">{{ exp.method }}</p>
+                    </div>
+                    <span class="font-mono font-bold text-blue-600">$ {{ exp.amount }}</span>
+                </div>
+            </section>
+
+            <section v-if="activeTab === 'lists'" class="space-y-6">
+                <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                    <h2 class="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-shopping-bag"></i> 必買清單與營業時間
+                    </h2>
+                    <ul class="text-xs space-y-2 text-slate-600">
+                        <li>• <b>兆成行</b> (10:00-19:30): 精油、香氛</li>
+                        <li>• <b>珍妮曲奇</b> (10:00-19:00): 四味奶油曲奇</li>
+                        <li>• <b>最香餅家</b> (11:00-19:00): 粒粒杏仁餅</li>
+                        <li>• <b>蘭芳園</b> (07:30-18:00): 絲襪奶茶</li>
+                    </ul>
+                </div>
+                <div class="space-y-2">
+                    <label v-for="task in checklists" :key="task.name" class="flex items-center p-4 bg-white rounded-2xl shadow-sm border border-slate-50">
+                        <input type="checkbox" v-model="task.done" class="w-5 h-5 rounded-full border-slate-300 text-blue-600 focus:ring-blue-500">
+                        <span :class="{'line-through text-slate-400': task.done}" class="ml-3 text-sm font-medium text-slate-700">{{ task.name }}</span>
+                    </label>
+                </div>
+            </section>
+        </main>
+
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 backdrop-blur-md flex justify-around p-4 tab-shadow rounded-t-3xl border-t border-slate-100 safe-area-bottom">
+            <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center">
+                <i class="fas fa-map-marked-alt text-xl"></i>
+                <span class="text-[10px] mt-1 font-bold uppercase tracking-widest">Itinerary</span>
+            </button>
+            <button @click="activeTab = 'finance'" :class="activeTab === 'finance' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center">
+                <i class="fas fa-receipt text-xl"></i>
+                <span class="text-[10px] mt-1 font-bold uppercase tracking-widest">Finance</span>
+            </button>
+            <button @click="activeTab = 'lists'" :class="activeTab === 'lists' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center">
+                <i class="fas fa-clipboard-check text-xl"></i>
+                <span class="text-[10px] mt-1 font-bold uppercase tracking-widest">List</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue
+
+        createApp({
+            setup() {
+                const activeTab = ref('itinerary')
+                const selectedDay = ref(1)
+                const tabs = [
+                    { id: 'itinerary', name: '詳細行程' },
+                    { id: 'finance', name: '支出分帳' },
+                    { id: 'lists', name: '購物清單' }
+                ]
+
+                const itinerary = ref([
+                    // Day 1
+                    { day: 1, time: '13:30', location: '香港國際機場', cost: 'HK$3.7', desc: '搭乘 S1 巴士至東薈城。' },
+                    { day: 1, time: '15:00', location: '東薈城名店倉', cost: '購物', desc: '逛 COACH 暢貨中心。' },
+                    { day: 1, time: '17:00', location: '旭逸酒店 荃灣', cost: 'HK$10.8', desc: '搭 E31/E32 至葵興站 B 出口，至地下 7-11 旁搭酒店接駁車。', link: 'https://www.hotelease.com.hk/files/photo_album_photo/attachment/11835/HETW_Shuttle%20Bus%20Schedule_TC_V_eVersion.pdf' },
+                    { day: 1, time: '18:30', location: '竺扶大班燒味', cost: 'HK$15.0', desc: '灣仔站 A3 出口。推薦：厚切叉燒、燒肉。' },
+                    { day: 1, time: '19:30', location: '半山手扶梯', cost: 'HK$3.0', desc: '搭叮叮車（後門上、前門刷卡）至租庇利街，內街找「手扶梯」指標。' },
+                    { day: 1, time: '21:00', location: '山頂纜車', cost: 'HK$108', desc: '看景後搭 15 號巴士下山。' },
+                    { day: 1, time: '22:30', location: '尖沙咀碼頭', cost: 'HK$5.0', desc: '搭天星小輪。抵達後沿彌敦道直走，左轉寧波街即抵佳佳甜品。' },
+                    // Day 2
+                    { day: 2, time: '10:00', location: '一點心', cost: 'HK$100+', desc: '太子站 A 出口。行李可寄存在太子站寄存櫃。推薦：蝦餃、蘿蔔糕。' },
+                    { day: 2, time: '12:00', location: '上環購物', cost: '購物', desc: '路線：兆成行 ➔ 珍妮曲奇 ➔ 蘭芳園(奶茶)。' },
+                    { day: 2, time: '14:30', location: '港澳快線太子站', cost: 'HK$180', desc: '上海街 695 號上車。' },
+                    { day: 2, time: '17:30', location: '澳門利澳酒店', cost: '步行', desc: '回力站下車，沿友誼大馬路步行 10 分鐘即抵酒店。' },
+                    { day: 2, time: '19:00', location: '大三巴/最香餅家', cost: '晚餐', desc: '步行：酒店 ➔ 殷皇子大馬路 ➔ 議事亭前地 ➔ 大三巴。晚餐推薦陳光記燒鵝。' },
+                    { day: 2, time: '21:00', location: '路氹夜景', cost: 'MOP 6', desc: '搭巴士至路氹東站，體驗 8 字摩天輪及永利皇宮纜車。回程推薦甜品：杏香園。' },
+                    // Day 3
+                    { day: 3, time: '10:00', location: '世紀咖啡', cost: 'MOP 50', desc: '行李寄存在酒店。前往新馬路總店吃厚蛋吐司、瓦煲奶茶。' },
+                    { day: 3, time: '12:00', location: '官也街', cost: 'MOP 6', desc: '搭巴士至官也街買蛋塔。隨後步行至威尼斯人逛 COACH。' },
+                    { day: 3, time: '19:30', location: '澳門機場', cost: 'MOP 6', desc: '拿回行李後搭巴士或計程車於 19:30 前抵達。' }
+                ])
+
+                const expenses = ref([])
+                const newExp = ref({ item: '', amount: null, method: '現金' })
+                const checklists = ref([
+                    { name: '行李寄存在太子站 (Day 2)', done: false },
+                    { name: '兆成行精油', done: false },
+                    { name: '珍妮曲奇 (上環店)', done: false },
+                    { name: '最香餅家杏仁餅', done: false },
+                    { name: '官也街買安德魯蛋塔', done: false }
+                ])
+
+                const filteredItinerary = computed(() => {
+                    return itinerary.value.filter(item => item.day === selectedDay.value)
+                })
+
+                const totalExpense = computed(() => {
+                    return expenses.value.reduce((sum, e) => sum + e.amount, 0)
+                })
+
+                const addExpense = () => {
+                    if (newExp.value.item && newExp.value.amount) {
+                        expenses.value.push({ ...newExp.value })
+                        newExp.value = { item: '', amount: null, method: '現金' }
+                    }
+                }
+
+                const openGoogleMap = (loc) => {
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank')
+                }
+
+                return { tabs, activeTab, selectedDay, filteredItinerary, expenses, newExp, totalExpense, addExpense, openGoogleMap, checklists }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
+
